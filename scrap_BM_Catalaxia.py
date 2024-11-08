@@ -7,7 +7,7 @@ import time
 import getpass  # Para ocultar la contraseña al escribirla
 
 # Solicita el usuario y la contraseña desde la consola
-email = input("Ingresa tu correo electrónico de Bull Market: ")
+email = "marcelolezcano_17@hotmail.com"
 password = getpass.getpass("Ingresa tu contraseña: ")
 
 # Configuración de descarga y opciones de Chrome
