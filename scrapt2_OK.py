@@ -5,6 +5,7 @@ from selenium.webdriver.support import expected_conditions as EC
 import os
 import time
 import getpass
+from datetime import datetime
 
 # Configuración de descarga y opciones de Chrome
 download_dir = os.path.join(os.getcwd(), "Descargas_PDFs")
@@ -22,18 +23,9 @@ driver = webdriver.Chrome(options=chrome_options)
 
 # Datos del cliente
 email = "marcelolezcano_17@hotmail.com"
-
+password = getpass.getpass("Ingresa tu contraseña: ")
 cliente_id = "15154"
 cliente_nombre = "Wichmann_Maria_Eugenia"
-
-# Solicitar fechas al usuario
-fecha_inicio = input("Ingresa la fecha de inicio (DD/MM/AAAA): ")
-fecha_fin = input("Ingresa la fecha de fin (DD/MM/AAAA): ")
-password = getpass.getpass("Ingresa tu contraseña: ")
-
-# Convertir fechas para el nombre del archivo
-fecha_inicio_formateada = fecha_inicio.replace("/", "")
-fecha_fin_formateada = fecha_fin.replace("/", "")
 
 # Lista de monedas y sus IDs de botón
 monedas = {
@@ -42,11 +34,14 @@ monedas = {
     "DÓLARES CABLE": "btn_filter_dolares_cable"
 }
 
+# Fecha para el nombre del archivo
+fecha_nombre = "ENERO24"
+
 try:
     print("Iniciando sesión...")
     driver.get("https://bullmarketbrokers.com/Security/SignIn")
     
-    # Completar el formulario de inicio de sesión
+    # Esperar y completar el formulario de inicio de sesión
     WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.NAME, "Email"))).send_keys(email)
     driver.find_element(By.NAME, "Password").send_keys(password)
     driver.find_element(By.ID, "submitButton").click()
@@ -93,17 +88,17 @@ try:
         driver.execute_script("arguments[0].click();", currency_button)
         time.sleep(1)  # Espera para que la moneda se cargue
 
-        # Establecer la fecha de inicio
+        # Selección de la fecha de inicio
         print("Estableciendo la fecha de inicio...")
         start_date = driver.find_element(By.ID, "txt_AccountBalance_SearchStartDate")
         start_date.clear()
-        start_date.send_keys(fecha_inicio)
+        start_date.send_keys("01/01/2024")  # Cambia la fecha de inicio según tus necesidades
 
-        # Establecer la fecha de fin
+        # Selección de la fecha de fin
         print("Estableciendo la fecha de fin...")
         end_date = driver.find_element(By.ID, "txt_AccountBalance_SearchEndDate")
         end_date.clear()
-        end_date.send_keys(fecha_fin)
+        end_date.send_keys("31/01/2024")  # Cambia la fecha de fin según tus necesidades
 
         # Iniciar la descarga del archivo de Excel
         print(f"Descargando archivo de Excel para {moneda}...")
@@ -113,10 +108,10 @@ try:
         download_link.click()
         time.sleep(5)  # Espera para que la descarga se complete
 
-        # Renombrar el archivo descargado con fechas especificadas
+        # Renombrar el archivo descargado
         print(f"Renombrando el archivo descargado para {moneda}...")
         latest_file = max([os.path.join(download_dir, f) for f in os.listdir(download_dir)], key=os.path.getctime)
-        new_file_name = f"{cliente_id}_{cliente_nombre}_CC_{moneda}_{fecha_inicio_formateada}-{fecha_fin_formateada}.xls"
+        new_file_name = f"{cliente_id}_{cliente_nombre}_CC_{moneda}_{fecha_nombre}.xls"
         os.rename(latest_file, os.path.join(download_dir, new_file_name))
         print(f"Archivo renombrado a: {new_file_name}")
 
