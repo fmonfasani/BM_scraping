@@ -1,3 +1,7 @@
+
+    
+
+
 import time
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -7,17 +11,22 @@ import json
 
 def iniciar_sesion(driver, email, password):
     """
-    Inicia sesión en el sitio web.
+    Inicia sesión en el sitio web y maneja el flujo inicial.
     """
     print("Iniciando sesión...")
-    driver.get("https://bullmarketbrokers.com/Security/SignIn")  # URL de inicio de sesión
-    WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.NAME, "Email"))).send_keys(email)
-    driver.find_element(By.NAME, "Password").send_keys(password)
-    driver.find_element(By.ID, "submitButton").click()
-    
-    # Esperar hasta que la URL cambie indicando éxito en el login
-    WebDriverWait(driver, 60).until(EC.url_contains("/Clients"))
-    print("Sesión iniciada con éxito.")
+    try:
+        driver.get("https://bullmarketbrokers.com/Security/SignIn")
+        WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.NAME, "Email"))).send_keys(email)
+        driver.find_element(By.NAME, "Password").send_keys(password)
+        driver.find_element(By.ID, "submitButton").click()
+
+        # Espera a que la redirección sea exitosa
+        WebDriverWait(driver, 60).until(EC.url_contains("/Clients"))
+        print("Sesión iniciada con éxito.")
+    except Exception as e:
+        print(f"Error al iniciar sesión: {e}")
+        driver.quit()
+        exit()
 
 def manejar_2fa(driver):
     """
@@ -25,56 +34,74 @@ def manejar_2fa(driver):
     """
     try:
         print("Verificando autenticación de dos factores...")
-        # Aquí puedes manejar el 2FA si aparece un campo adicional para ingresar un código
         WebDriverWait(driver, 15).until(
-            EC.presence_of_element_located((By.ID, "2fa_input"))  # Cambia al ID real del campo de código
-        ).send_keys("TU_CODIGO_2FA")  # Puedes usar un input para capturar el código
-        driver.find_element(By.ID, "2fa_submit_button").click()  # Cambia al ID real del botón
+            EC.presence_of_element_located((By.ID, "2fa_input"))  # Cambia este selector según sea necesario
+        ).send_keys("TU_CODIGO_2FA")  # Reemplaza con el código correcto
+        driver.find_element(By.ID, "2fa_submit_button").click()  # Cambia este selector según sea necesario
         print("Autenticación de dos factores completada.")
     except Exception:
         print("No se detectó autenticación de dos factores. Continuando...")
+
+def verificar_ventana(driver):
+    """
+    Verifica si el navegador aún está abierto.
+    """
+    if not driver.window_handles:
+        print("El navegador se cerró inesperadamente.")
+        driver.quit()
+        exit()
 
 def obtener_cuentas(driver):
     """
     Scrapea la lista de cuentas después de iniciar sesión.
     """
-    print("Obteniendo lista de cuentas...")
-    cuentas = []
-    driver.get("https://bullmarketbrokers.com/Clients/AccountList")  # Cambia a la URL real donde están las cuentas
+    try:
+        print("Obteniendo lista de cuentas...")
+        driver.get("https://bullmarketbrokers.com/Clients/AccountList")
+        verificar_ventana(driver)
 
-    # Esperar a que la lista de cuentas esté cargada
-    cuentas_elementos = WebDriverWait(driver, 20).until(
-        EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".account-row"))  # Ajusta el selector al HTML real
-    )
+        cuentas_elementos = WebDriverWait(driver, 20).until(
+            EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".account-row"))
+        )
 
-    # Extraer datos de cada cuenta
-    for elemento in cuentas_elementos:
-        account_id = elemento.get_attribute("data-id")
-        account_text = elemento.find_element(By.CLASS_NAME, "account-text").text
-        account_number = elemento.find_element(By.CLASS_NAME, "account-number").text
-        cuentas.append({
-            "id": int(account_id),
-            "text": account_text,
-            "number": int(account_number)
-        })
-
-    return cuentas
+        cuentas = []
+        for elemento in cuentas_elementos:
+            account_id = elemento.get_attribute("data-id")
+            account_text = elemento.find_element(By.CLASS_NAME, "account-text").text
+            account_number = elemento.find_element(By.CLASS_NAME, "account-number").text
+            cuentas.append({
+                "id": int(account_id),
+                "text": account_text,
+                "number": int(account_number)
+            })
+        return cuentas
+    except Exception as e:
+        print(f"Error al obtener cuentas: {e}")
+        driver.quit()
+        exit()
 
 def guardar_en_json(data, archivo):
     """
     Guarda los datos en un archivo JSON.
     """
-    with open(archivo, "w", encoding="utf-8") as file:
-        json.dump(data, file, indent=4, ensure_ascii=False)
+    try:
+        with open(archivo, "w", encoding="utf-8") as file:
+            json.dump(data, file, indent=4, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error al guardar JSON: {e}")
 
 # Configuración de Selenium
 chrome_options = webdriver.ChromeOptions()
 prefs = {
-    "download.default_directory": "./Descargas",  # Configurar la carpeta de descargas
+    "download.default_directory": "./Descargas",  # Cambiar al directorio de descargas deseado
     "download.prompt_for_download": False,
     "plugins.always_open_pdf_externally": True
 }
 chrome_options.add_experimental_option("prefs", prefs)
+
+# Opcional: Ejecutar en modo sin cabeza para mayor estabilidad
+# chrome_options.add_argument("--headless")
+
 driver = webdriver.Chrome(options=chrome_options)
 
 try:
@@ -84,7 +111,7 @@ try:
     # Iniciar sesión
     iniciar_sesion(driver, email, password)
 
-    # Manejar autenticación de dos factores (si aplica)
+    # Manejar autenticación de dos factores si es necesario
     manejar_2fa(driver)
 
     # Scraping después del inicio de sesión
@@ -95,7 +122,7 @@ try:
     print("Cuentas guardadas en clientes.json")
 
 except Exception as e:
-    print(f"Ocurrió un error: {e}")
+    print(f"Ocurrió un error inesperado: {e}")
 
 finally:
     driver.quit()
