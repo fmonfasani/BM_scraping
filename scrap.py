@@ -50,3 +50,4 @@ for currency in currencies:
 # Cierra el navegador
 driver.quit()
 print(f"Descargas completadas en la carpeta: {download_dir}")
+

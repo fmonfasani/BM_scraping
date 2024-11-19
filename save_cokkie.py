@@ -28,3 +28,4 @@ driver.refresh()
 
 print("Cookies agregadas exitosamente.")
 # Ahora puedes continuar con el script que requiere la sesión
+

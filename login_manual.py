@@ -15,6 +15,7 @@ driver = webdriver.Chrome(options=chrome_options)
 driver.get("https://bullmarketbrokers.com/Clients/accountbalance")
 time.sleep(30)  # Espera para asegurarse de que la sesión esté cargada
 
+
 # Guarda las cookies en un archivo
 with open("cookies.pkl", "wb") as file:
     pickle.dump(driver.get_cookies(), file)

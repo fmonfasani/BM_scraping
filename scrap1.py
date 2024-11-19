@@ -234,6 +234,7 @@ try:
                     )
                     filter_button.click()
                     time.sleep(3)
+                    
 
                     # Descargar el archivo Excel
                     download_button = WebDriverWait(driver, 20).until(

@@ -1,106 +1,70 @@
-import time
 import json
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import os
-import getpass
-from datetime import datetime
-import requests
 
-def check_internet_connection(url="https://www.google.com", timeout=5):
-    """Verifica la conexión a Internet."""
-    try:
-        requests.get(url, timeout=timeout)
-        return True
-    except requests.ConnectionError:
-        return False
+def obtener_cuentas(driver):
+    """
+    Scrapea la lista de cuentas de la página y las devuelve como una lista de diccionarios.
+    """
+    cuentas = []
+    driver.get("https://bullmarketbrokers.com/Clients/AccountList")  # Cambia a la URL correcta
 
-def init_chrome_driver(download_dir):
-    """Inicializa el navegador Chrome con opciones y control de errores."""
-    chrome_options = webdriver.ChromeOptions()
-    prefs = {
-        "download.default_directory": download_dir,
-        "download.prompt_for_download": False,
-        "plugins.always_open_pdf_externally": True,
-    }
-    chrome_options.add_experimental_option("prefs", prefs)
-    try:
-        driver = webdriver.Chrome(options=chrome_options)
-        driver.set_page_load_timeout(120)
-        return driver
-    except Exception as e:
-        print(f"Error al iniciar ChromeDriver: {e}")
-        return None
+    # Esperar a que la lista de cuentas esté cargada
+    cuentas_elementos = WebDriverWait(driver, 20).until(
+        EC.presence_of_all_elements_located((By.CSS_SELECTOR, ".account-row"))  # Cambia al selector adecuado
+    )
 
-start_time = time.time()
+    # Extraer datos de cada cuenta
+    for elemento in cuentas_elementos:
+        try:
+            account_id = elemento.get_attribute("data-id")
+            account_text = elemento.find_element(By.CLASS_NAME, "account-text").text
+            account_number = elemento.find_element(By.CLASS_NAME, "account-number").text
 
-# Configuración de descarga y opciones de Chrome
-base_download_dir = os.path.join(os.getcwd(), "Descargas_PDFs")
-os.makedirs(base_download_dir, exist_ok=True)
+            cuentas.append({
+                "id": int(account_id),
+                "text": account_text,
+                "number": int(account_number)
+            })
+        except Exception as e:
+            print(f"Error al procesar una cuenta: {e}")
 
-# Verificar la conexión a Internet
-if not check_internet_connection():
-    print("No hay conexión a Internet. Por favor, verifica tu conexión y vuelve a intentarlo.")
-    exit()
+    return cuentas
 
-# Inicializar ChromeDriver
-driver = init_chrome_driver(base_download_dir)
-if driver is None:
-    print("No se pudo iniciar ChromeDriver. Verifica que esté instalado correctamente.")
-    exit()
+def guardar_en_json(data, archivo):
+    """
+    Guarda los datos en un archivo JSON.
+    """
+    with open(archivo, "w", encoding="utf-8") as file:
+        json.dump(data, file, indent=4, ensure_ascii=False)
 
-# Credenciales de inicio de sesión
-email = "marcelolezcano_17@hotmail.com"
-password = getpass.getpass("Ingresa tu contraseña: ")
-
-# Cargar lista de cuentas de usuario desde el archivo JSON
-with open("usuarios.json", "r") as file:
-    stock_accounts = json.load(file)
+# Configurar Selenium
+chrome_options = webdriver.ChromeOptions()
+driver = webdriver.Chrome(options=chrome_options)
 
 try:
+    # Iniciar sesión antes de scrapear
     print("Iniciando sesión...")
     driver.get("https://bullmarketbrokers.com/Security/SignIn")
-    
-    # Esperar y completar el formulario de inicio de sesión
-    WebDriverWait(driver, 60).until(EC.presence_of_element_located((By.NAME, "Email"))).send_keys(email)
-    driver.find_element(By.NAME, "Password").send_keys(password)
+    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.NAME, "Email"))).send_keys("tu_email")
+    driver.find_element(By.NAME, "Password").send_keys("tu_contraseña")
     driver.find_element(By.ID, "submitButton").click()
-    
-    # Espera a que se redirija a la página de balance
-    WebDriverWait(driver, 30).until(EC.url_contains("/Clients/accountbalance"))
-    print("Accediendo a la página de balance...")
 
-    # Extraer información de los usuarios cargados
-    clientes = []
-    for account in stock_accounts:
-        cliente_nombre = account["text"]
-        cliente_number = account["number"]
+    # Scrapeo de cuentas
+    print("Obteniendo lista de cuentas...")
+    cuentas = obtener_cuentas(driver)
+    print(f"Se obtuvieron {len(cuentas)} cuentas.")
 
-        print(f"Extrayendo información para el usuario {cliente_nombre}...")
-
-        # Añadir la información del cliente al JSON
-        cliente_info = {
-            "nombre": cliente_nombre,
-            "número": cliente_number,
-        }
-        clientes.append(cliente_info)
-    
-    # Guardar en un archivo JSON llamado "clientes.json"
-    with open("clientes.json", "w") as outfile:
-        json.dump(clientes, outfile, indent=4, ensure_ascii=False)
-    
-    print("Información de los clientes guardada en 'clientes.json'.")
+    # Guardar en un archivo JSON
+    archivo_salida = "clientes.json"
+    guardar_en_json(cuentas, archivo_salida)
+    print(f"Cuentas guardadas en el archivo {archivo_salida}.")
 
 except Exception as e:
-    print(f"Ocurrió un error durante el proceso: {e}")
-    driver.save_screenshot('error_screenshot.png')
-    print("Captura de pantalla guardada como error_screenshot.png")
+    print(f"Ocurrió un error: {e}")
 
 finally:
     driver.quit()
-    print("Proceso completado")
-
-    end_time = time.time()
-    elapsed_time_minutes = (end_time - start_time)
